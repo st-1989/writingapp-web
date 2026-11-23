@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 通信先を GitHub の API と Pyodide の配信元だけに絞る。万一おかしなコードが紛れ込んでも、
+     トークンやデータを他の場所へ送り出せないようにする（画面を差し替えたあとも同じ制限が残る）。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/pyodide/v0.26.4/; connect-src 'self' https://api.github.com https://cdn.jsdelivr.net/pyodide/v0.26.4/; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'">
+<title>英作文ドリル</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="英作文ドリル">
+<meta name="theme-color" content="#2f6f4e">
+<!--
+  英作文ドリルの Web 版（iPad・スマホ用）の入口。
+  このページにはデータもコードの本体も入っていない。開くたびに、設定した GitHub リポジトリから
+  app.py・index.html・data/ を読み込み、app.py をブラウザの中の Python（Pyodide）で動かす。
+  記録はリポジトリの data/logs/<端末名>.jsonl に GitHub の API で書き込む。
+-->
+<style>
+  :root{--bg:#f6f6f4;--panel:#fff;--ink:#1c1c1a;--muted:#77776f;--line:#e2e2dc;--accent:#2f6f4e;--bad:#a03434}
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#17181a;--panel:#212226;--ink:#e8e8e4;--muted:#9a9a92;--line:#34353a;--accent:#6fbf93;--bad:#e07a7a}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;
+    width:100%;max-width:440px}
+  h1{font-size:20px;margin:0 0 6px}
+  p{color:var(--muted);font-size:14px;line-height:1.6;margin:6px 0 14px}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input{width:100%;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+    background:var(--bg);color:var(--ink)}
+  button{margin-top:20px;width:100%;font-size:16px;padding:12px;border-radius:8px;border:0;
+    background:var(--accent);color:#fff;font-weight:600}
+  button.sub{background:transparent;color:var(--muted);border:1px solid var(--line);margin-top:10px}
+  .err{color:var(--bad);font-size:14px;margin-top:12px;white-space:pre-wrap}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .hidden{display:none}
+  .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:r 0.9s linear infinite;margin:0 auto 14px}
+  @keyframes r{to{transform:rotate(360deg)}}
+  #loading{text-align:center}
+</style>
+</head>
+<body>
+  <div class="card hidden" id="loading">
+    <div class="spin"></div>
+    <div id="loadingMsg">読み込んでいます…</div>
+    <div class="err hidden" id="loadErr"></div>
+    <button class="sub hidden" id="retryBtn">もう一度試す</button>
+    <button class="sub hidden" id="resetBtn">接続の設定をやり直す</button>
+  </div>
+
+  <form class="card hidden" id="setup" autocomplete="off">
+    <h1>英作文ドリル（Web 版）</h1>
+    <p>最初の1回だけ、データを置いている GitHub のリポジトリと、そのリポジトリを読み書きできる
+      アクセストークンを入れてください。この端末の中にだけ保存されます。</p>
+    <label for="repo">リポジトリ</label>
+    <input id="repo" placeholder="ユーザー名/WritingApp" autocapitalize="off" spellcheck="false">
+    <label for="token">アクセストークン</label>
+    <input id="token" type="password" placeholder="github_pat_…" autocapitalize="off" spellcheck="false">
+    <div class="hint">Contents を Read and write にした Fine-grained トークン</div>
+    <label for="device">端末名</label>
+    <input id="device" placeholder="ipad" autocapitalize="off" spellcheck="false">
+    <div class="hint">記録は data/logs/&lt;端末名&gt;.jsonl に書かれる。英数字・-・_ のみ。端末ごとに変える</div>
+    <div class="err hidden" id="setupErr"></div>
+    <button type="submit" id="setupBtn">はじめる</button>
+  </form>
+
+  <script src="loader.js"></script>
+</body>
+</html>
